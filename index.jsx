@@ -19,7 +19,7 @@
 
 
 
-//step 1: createElement 
+//step I: createElement 
 function createElement(type,props, ...children){
   return {
     type,
@@ -43,6 +43,8 @@ function createTextElement(text){
     }
   }
 }
+
+//step II: render
 function render(element, container){  
   const dom = element.type == "TEXT_ELEMENT"?document.createTextNode(""):document.createElement(element.type);
   const isProperty = (key)=>key !== "children";
@@ -67,3 +69,24 @@ const element = (
 )
 const container = document.getElementById("root");
 Didact.render(element, container);
+
+// Step III: Concurrent Mode
+let nextUnitOfWork = null
+
+function workLoop(deadline){
+  let shouldYield = false
+  while(nextUnitOfWork && !shouldYield){
+    nextUnitOfWork = performUnitOfWork(
+      nextUnitOfWork
+    )
+    shouldYield = deadline.timeRemaining() < 1
+  }
+  requestIdleCallback(workLoop)
+}
+
+requestIdleCallback(workLoop)
+
+// 執行並返回下一個單元
+function performUnitOfWork(nextUnitOfWork) {
+  // TODO
+}
