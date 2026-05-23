@@ -1,92 +1,116 @@
-// const element = <h1 title="foo">Hello</h1>
-// const element = {
-//   type: "h1",
-//   props: {
-//     title: "foo",
-//     children: "Hello",
-//   },
-// };
-// const container = document.getElementById("root");
-// ReactDOM.render(element, container)
-// const node = document.createElement(element.type);
-// node["title"] = element.props.title;
-
-// const text = document.createTextNode("");
-// text["nodeValue"] = element.props.children;
-
-// node.appendChild(text);
-// container.appendChild(node);
-
-
-
-//step I: createElement 
-function createElement(type,props, ...children){
+function createElement(type, props, ...children) {
   return {
     type,
-    props:{
+    props: {
       ...props,
-      children:children.map((child)=>{
-        if(typeof child === "object"){
+      children: children.map((child) => {
+        if (typeof child === "object") {
           return child;
         }
         return createTextElement(child);
       }),
-    }
-  }
+    },
+  };
 }
-function createTextElement(text){
+function createTextElement(text) {
   return {
-    type:"TEXT_ELEMENT",
-    props:{
-      nodeValue:text,
-      children:[],
+    type: "TEXT_ELEMENT",
+    props: {
+      nodeValue: text,
+      children: [],
+    },
+  };
+}
+
+// 根據傳進來的filber建立dom節點
+function createDom(fiber) {
+  const dom =
+    fiber.type == "TEXT_ELEMENT"
+      ? document.createTextNode("")
+      : document.createElement(fiber.type);
+  const isProperty = (key) => key !== "children";
+  Object.keys(fiber.props)
+    .filter(isProperty)
+    .forEach((name) => {
+      dom[name] = fiber.props[name];
+    });
+  return dom;
+}
+
+let nextUnitOfWork = null;
+
+function render(element, container) {
+  nextUnitOfWork = {
+    dom: container,
+    props: {
+      children: [element],
+    },
+  };
+}
+
+function workLoop(deadline) {
+  let shouldYield = false;
+  while (nextUnitOfWork && !shouldYield) {
+    nextUnitOfWork = performUnitOfWork(nextUnitOfWork);
+    shouldYield = deadline.timeRemaining() < 1;
+  }
+  requestIdleCallback(workLoop);
+}
+
+requestIdleCallback(workLoop);
+
+// 執行並返回下一個單元
+function performUnitOfWork(fiber) {
+  // TODO add dom node
+  if (!fiber.dom) {
+    fiber.dom = createDom(fiber);
+  }
+  if (fiber.parent) {
+    fiber.parent.dom.appendChild(fiber.dom);
+  }
+  // TODO create new fibers
+  const elements = fiber.props.children;
+  let index = 0;
+  let prevSibling = null;
+  while (index < elements.length) {
+    const element = elements[index];
+    const newFiber = {
+      type: element.type,
+      props: element.props,
+      parent: fiber,
+      dom: null,
+    };
+    if (index === 0) {
+      fiber.child = newFiber;
+    } else {
+      prevSibling.sibling = newFiber;
     }
+    prevSibling = newFiber;
+    index++;
+  }
+  // TODO return next unit of work
+  if (fiber.child) {
+    return fiber.child;
+  }
+  let nextFiber = fiber;
+  while (nextFiber) {
+    if (nextFiber.sibling) {
+      return nextFiber.sibling;
+    }
+    nextFiber = nextFiber.parent;
   }
 }
 
-//step II: render
-function render(element, container){  
-  const dom = element.type == "TEXT_ELEMENT"?document.createTextNode(""):document.createElement(element.type);
-  const isProperty = (key)=>key !== "children";
-  Object.keys(element.props).filter(isProperty).forEach((name)=>{
-    dom[name] = element.props[name];
-  })
-  element.props.children.forEach((child)=>{
-    render(child, dom);
-  })
-  container.appendChild(dom);
-}
-const Didact ={
+const Didact = {
   createElement,
-  render
-}
+  render,
+};
 /** @jsx Didact.createElement */
 const element = (
   <div id="foo">
     <a>bar</a>
     <b />
   </div>
-)
+);
 const container = document.getElementById("root");
 Didact.render(element, container);
-
-// Step III: Concurrent Mode
-let nextUnitOfWork = null
-
-function workLoop(deadline){
-  let shouldYield = false
-  while(nextUnitOfWork && !shouldYield){
-    nextUnitOfWork = performUnitOfWork(
-      nextUnitOfWork
-    )
-    shouldYield = deadline.timeRemaining() < 1
-  }
-  requestIdleCallback(workLoop)
-}
-
-requestIdleCallback(workLoop)
-
-// 執行並返回下一個單元
-function performUnitOfWork(nextUnitOfWork) {
-  // TODO
-}
