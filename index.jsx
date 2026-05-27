@@ -22,7 +22,6 @@ function createTextElement(text) {
   };
 }
 
-// 根據傳進來的filber建立dom節點
 function createDom(fiber) {
   const dom =
     fiber.type == "TEXT_ELEMENT"
@@ -39,14 +38,20 @@ function createDom(fiber) {
 
 let nextUnitOfWork = null;
 
+function commitRoot() {
+  // TODO add nodes to dom
+}
+
 function render(element, container) {
-  nextUnitOfWork = {
+  wipRoot = {
     dom: container,
     props: {
       children: [element],
     },
   };
+  nextUnitOfWork = wipRoot;
 }
+let wipRoot = null;
 
 function workLoop(deadline) {
   let shouldYield = false;
@@ -54,21 +59,21 @@ function workLoop(deadline) {
     nextUnitOfWork = performUnitOfWork(nextUnitOfWork);
     shouldYield = deadline.timeRemaining() < 1;
   }
+  if (!nextUnitOfWork && wipRoot) {
+    commitRoot();
+  }
   requestIdleCallback(workLoop);
 }
 
 requestIdleCallback(workLoop);
 
-// 執行並返回下一個單元
 function performUnitOfWork(fiber) {
-  // TODO add dom node
   if (!fiber.dom) {
     fiber.dom = createDom(fiber);
   }
-  if (fiber.parent) {
-    fiber.parent.dom.appendChild(fiber.dom);
-  }
-  // TODO create new fibers
+  // if (fiber.parent) {
+  //   fiber.parent.dom.appendChild(fiber.dom);
+  // }
   const elements = fiber.props.children;
   let index = 0;
   let prevSibling = null;
@@ -88,7 +93,6 @@ function performUnitOfWork(fiber) {
     prevSibling = newFiber;
     index++;
   }
-  // TODO return next unit of work
   if (fiber.child) {
     return fiber.child;
   }
